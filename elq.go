@@ -2,43 +2,44 @@ package elq
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
-	"errors"
-	"encoding/json"
-	"github.com/olivere/elastic"
+
 	"github.com/crackgoland/env"
+	"github.com/olivere/elastic"
 )
 
 type Elastic struct {
-	ctx				context.Context
-	client		*elastic.Client
+	ctx    context.Context
+	client *elastic.Client
 }
 
 type ElasticIndex struct {
-	es 		*Elastic
-	name 	string
+	es   *Elastic
+	name string
 }
 
 var (
-	ErrUnInitializedIndex = errors.New("Use of uninitialized index reference")
+	ErrUnInitializedIndex  = errors.New("Use of uninitialized index reference")
 	ErrUnInitializedClient = errors.New("Use of uninitialized client reference")
 )
 
-func NewElastic(e *env.Env) (*Elastic, error) {
+func NewElastic(e *env.Set) (*Elastic, error) {
 	ctx := context.Background()
 
-	ES_HOST, _ := e.Get("ES_HOST", "1.2.3.4")
-  elasticAddr := fmt.Sprintf("http://%s:9200", ES_HOST)
+	ES_HOST, _ := e.String("ES_HOST", "1.2.3.4")
+	elasticAddr := fmt.Sprintf("http://%s:9200", ES_HOST)
 
 	client, err := elastic.NewClient(
-    elastic.SetURL(elasticAddr),
+		elastic.SetURL(elasticAddr),
 		elastic.SetSniff(false),
 		elastic.SetHealthcheck(false),
-	  elastic.SetGzip(true),
-	  elastic.SetErrorLog(log.New(os.Stderr, "ELASTIC ", log.LstdFlags)),
-	  // elastic.SetInfoLog(log.New(os.Stdout, "", log.LstdFlags)),
+		elastic.SetGzip(true),
+		elastic.SetErrorLog(log.New(os.Stderr, "ELASTIC ", log.LstdFlags)),
+		// elastic.SetInfoLog(log.New(os.Stdout, "", log.LstdFlags)),
 	)
 	if err != nil {
 		return nil, err
@@ -74,7 +75,7 @@ func (es *Elastic) NewIndexMapped(name string, mapping string) (ElasticIndex, er
 
 	_, err := es.client.CreateIndex(name).BodyString(mapping).Do(es.ctx)
 	if err != nil {
-	    return ElasticIndex{}, err
+		return ElasticIndex{}, err
 	}
 
 	return ElasticIndex{es: es, name: name}, nil
@@ -87,13 +88,13 @@ func (es *Elastic) NewIndex(name string) (ElasticIndex, error) {
 
 	_, err := es.client.CreateIndex(name).Do(es.ctx)
 	if err != nil {
-	    return ElasticIndex{}, err
+		return ElasticIndex{}, err
 	}
 
 	return ElasticIndex{es: es, name: name}, nil
 }
 
-func (es *Elastic) GetOrCreateIndex(name string) (ElasticIndex, error)  {
+func (es *Elastic) GetOrCreateIndex(name string) (ElasticIndex, error) {
 	if es.client == nil {
 		return ElasticIndex{}, ErrUnInitializedClient
 	}
@@ -118,10 +119,10 @@ func (i *ElasticIndex) PushId(id string, object interface{}) error {
 	}
 
 	_, err := i.es.client.Index().
-	    Index(i.name).
-			Id(id).
-	    BodyJson(object).
-	    Do(i.es.ctx)
+		Index(i.name).
+		Id(id).
+		BodyJson(object).
+		Do(i.es.ctx)
 
 	if err != nil {
 		return err
@@ -136,9 +137,9 @@ func (i *ElasticIndex) Push(object interface{}) (string, error) {
 	}
 
 	put1, err := i.es.client.Index().
-	    Index(i.name).
-	    BodyJson(object).
-	    Do(i.es.ctx)
+		Index(i.name).
+		BodyJson(object).
+		Do(i.es.ctx)
 
 	if err != nil {
 		return "", err
@@ -153,9 +154,9 @@ func (i *ElasticIndex) Pull(id string, object interface{}) (found bool, err erro
 	}
 
 	get1, err := i.es.client.Get().
-    Index(i.name).
-    Id(id).
-    Do(i.es.ctx)
+		Index(i.name).
+		Id(id).
+		Do(i.es.ctx)
 
 	if elastic.IsNotFound(err) {
 		return false, nil
