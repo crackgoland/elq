@@ -170,3 +170,8 @@ func (i *ElasticIndex) Pull(id string, object interface{}) (found bool, err erro
 
 	return true, json.Unmarshal(get1.Source, object)
 }
+
+// Name tell the name of index
+func (i ElasticIndex) Name() string {
+	return i.name
+}
